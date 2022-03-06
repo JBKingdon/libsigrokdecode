@@ -277,6 +277,9 @@ class Decoder(srd.Decoder):
             self.putp(pos, ann, text)
             self.end_of_status_pos = pos[1]
 
+            if statusCmdStatus in (3,4,5):
+                self.putp(pos, self.ann_warn, 'Prev CMD FAILED!')
+
         else:
             self.decode_mb_data(pos, ann, data, label, True)
 
