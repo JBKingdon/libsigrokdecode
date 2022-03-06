@@ -2,6 +2,7 @@
 ## This file is part of the libsigrokdecode project.
 ##
 ## Copyright (C) 2014 Jens Steinhauser <jens.steinhauser@gmail.com>
+## Copyright (C) 2022 James Kingdon
 ##
 ## This program is free software; you can redistribute it and/or modify
 ## it under the terms of the GNU General Public License as published by
@@ -22,6 +23,7 @@ import sigrokdecode as srd
 class ChannelError(Exception):
     pass
 
+# sx1280 status combines the current mode and the status of the last command
 
 sx1280_status_modes = {
     2 : 'STDBY_RC',
@@ -80,10 +82,12 @@ regs = {
 #     SX1280_RADIO_SET_RANGING_ROLE = 0xA3,
 # } SX1280_RadioCommands_t;
 
+CMD_GET_PACKET_STATUS = 0x1D
+
 sx1280_commands = {
     # cmd   name            # number of extra bytes in command
     0x1B: ('READ BUF',       3),
-    0x1D: ('GET PKT STATUS', 2),
+    0x1D: ('GET PKT STATUS', 3),
     0x82: ('SET RX',         3),
     0x86: ('SET FREQ',       3),
     0x97: ('CLR IRQSTATUS',  2),
@@ -157,6 +161,7 @@ class Decoder(srd.Decoder):
         # The current command, and the minimum and maximum number
         # of data bytes to follow.
         self.cmd = None
+        self.cmdInt = 0
         self.min = 0
         self.max = 0
 
@@ -183,8 +188,8 @@ class Decoder(srd.Decoder):
             return
 
         self.cmd, self.dat, self.min, self.max = c
+        self.cmdInt = b
 
-        # if self.cmd in ('W_REGISTER', 'ACTIVATE'):
         if self.min > 1:
             # Don't output anything now, the command is merged with
             # the data bytes following it.
@@ -299,6 +304,20 @@ class Decoder(srd.Decoder):
         '''Decodes the remaining data bytes at position 'pos'.'''
 
         self.putp(pos, self.ann_cmd, self.cmd)
+
+        # Commands that return values need extra handling
+        if self.cmdInt == CMD_GET_PACKET_STATUS:
+            # bytes 2 through 6 are the result
+            # For Lora:
+            #   byte2 is rssiSync
+            #   byte3 is snr
+            # indexes are off by one because the first byte isn't saved
+            rssi = -(self.miso_bytes()[1] / 2)
+            snr = self.miso_bytes()[2] / 4
+            text = 'RSSI {}, SNR {}'.format(rssi, snr)
+            self.putp((pos[0]+1,pos[1]), self.ann_reg, text)
+
+
 
         # if self.cmd == 'R_REGISTER':
         #     self.decode_register(pos, self.ann_reg,
