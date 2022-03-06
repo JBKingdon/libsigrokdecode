@@ -275,6 +275,7 @@ class Decoder(srd.Decoder):
 
             text = '{}, {}'.format(smText, sStatusText)
             self.putp(pos, ann, text)
+            self.end_of_status_pos = pos[1]
 
         else:
             self.decode_mb_data(pos, ann, data, label, True)
@@ -315,8 +316,7 @@ class Decoder(srd.Decoder):
             rssi = -(self.miso_bytes()[1] / 2)
             snr = self.miso_bytes()[2] / 4
             text = 'RSSI {}, SNR {}'.format(rssi, snr)
-            self.putp((pos[0]+1,pos[1]), self.ann_reg, text)
-
+            self.putp((self.end_of_status_pos,pos[1]), self.ann_reg, text)
 
 
         # if self.cmd == 'R_REGISTER':
