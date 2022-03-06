@@ -273,7 +273,7 @@ class Decoder(srd.Decoder):
             else:
                 sStatusText = '{}?'.format(statusCmdStatus)
 
-            text = 'M:{} S:{}'.format(smText, sStatusText)
+            text = '{}, {}'.format(smText, sStatusText)
             self.putp(pos, ann, text)
 
         else:
