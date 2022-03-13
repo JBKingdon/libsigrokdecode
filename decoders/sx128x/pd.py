@@ -43,56 +43,87 @@ sx1280_status_status = {
 }
 
 regs = {
-#   addr: ('name',        size)
-    0x00: ('TODO',      1),
+#   addr: 'name'
+    0x153: 'FIRMWARE_VER_H',
+    0x154: 'FIRMWARE_VER_L',
+    0x891: 'RxGain',
+    0x925: 'SF Additional Config',
+    0x93C: 'Frequency Error Correction Mode',
+}
+
+packet_types = {
+    0:  'GFSK',
+    1:  'LORA',
+    2:  'RANGING',
+    3:  'FLRC',
+    4:  'BLE'
 }
 
 # typedef enum RadioCommands_u
 # {
-#     SX1280_RADIO_WRITE_REGISTER = 0x18,
-#     SX1280_RADIO_READ_REGISTER = 0x19,
-#     SX1280_RADIO_WRITE_BUFFER = 0x1A,
 #     SX1280_RADIO_READ_BUFFER = 0x1B,
 #     SX1280_RADIO_SET_SLEEP = 0x84,
-#     SX1280_RADIO_SET_STANDBY = 0x80,
-#     SX1280_RADIO_SET_FS = 0xC1,
-#     SX1280_RADIO_SET_TX = 0x83,
 #     SX1280_RADIO_SET_RXDUTYCYCLE = 0x94,
 #     SX1280_RADIO_SET_CAD = 0xC5,
 #     SX1280_RADIO_SET_TXCONTINUOUSWAVE = 0xD1,
 #     SX1280_RADIO_SET_TXCONTINUOUSPREAMBLE = 0xD2,
-#     SX1280_RADIO_SET_PACKETTYPE = 0x8A,
 #     SX1280_RADIO_GET_PACKETTYPE = 0x03,
-#     SX1280_RADIO_SET_TXPARAMS = 0x8E,
 #     SX1280_RADIO_SET_CADPARAMS = 0x88,
-#     SX1280_RADIO_SET_BUFFERBASEADDRESS = 0x8F,
-#     SX1280_RADIO_SET_MODULATIONPARAMS = 0x8B,
-#     SX1280_RADIO_SET_PACKETPARAMS = 0x8C,
 #     SX1280_RADIO_GET_RXBUFFERSTATUS = 0x17,
 #     SX1280_RADIO_GET_RSSIINST = 0x1F,
-#     SX1280_RADIO_SET_DIOIRQPARAMS = 0x8D,
-#     SX1280_RADIO_GET_IRQSTATUS = 0x15,
 #     SX1280_RADIO_CALIBRATE = 0x89,
 #     SX1280_RADIO_SET_REGULATORMODE = 0x96,
 #     SX1280_RADIO_SET_SAVECONTEXT = 0xD5,
 #     SX1280_RADIO_SET_AUTOTX = 0x98,
-#     SX1280_RADIO_SET_AUTOFS = 0x9E,
 #     SX1280_RADIO_SET_LONGPREAMBLE = 0x9B,
 #     SX1280_RADIO_SET_UARTSPEED = 0x9D,
 #     SX1280_RADIO_SET_RANGING_ROLE = 0xA3,
 # } SX1280_RadioCommands_t;
 
-CMD_GET_PACKET_STATUS = 0x1D
+CMD_GET_IRQSTATUS         = 0x15
+CMD_WRITE_REG             = 0x18
+CMD_READ_REG              = 0x19
+CMD_WRITE_BUFFER          = 0x1A
+CMD_READ_BUFFER           = 0x1B
+CMD_GET_PACKET_STATUS     = 0x1D
+CMD_SET_STANDBY           = 0x80
+CMD_SET_RX                = 0x82
+CMD_SET_TX                = 0x83
+CMD_SET_FREQ              = 0x86
+CMD_SET_PACKETTYPE        = 0x8A
+CMD_SET_MODULATIONPARAMS  = 0x8B
+CMD_SET_PACKETPARAMS      = 0x8C
+CMD_SET_DIOIRQPARAMS      = 0x8D
+CMD_SET_TXPARAMS          = 0x8E
+CMD_SET_BUFFERBASEADDRESS = 0x8F
+CMD_CLEAR_IRQ_STATUS      = 0x97
+CMD_RADIO_SET_AUTOFS      = 0x9E
+CMD_GET_STATUS            = 0xC0
+CMD_SET_FS                = 0xC1
+
 
 sx1280_commands = {
-    # cmd   name            # number of extra bytes in command
-    0x1B: ('READ BUF',       3),
-    0x1D: ('GET PKT STATUS', 3),
-    0x82: ('SET RX',         3),
-    0x86: ('SET FREQ',       3),
-    0x97: ('CLR IRQSTATUS',  2),
-    0xC0: ('GET STATUS',     1),
-
+    # cmd                       name                # number of extra bytes in command
+    CMD_GET_IRQSTATUS:          ('GET_IRQSTATUS',        1),
+    CMD_WRITE_REG:              ('WRITE REG',            3),
+    CMD_READ_REG:               ('READ REG',             4),
+    CMD_WRITE_BUFFER:           ('WRITE BUF',            1),
+    CMD_READ_BUFFER:            ('READ BUF',             3),
+    CMD_GET_PACKET_STATUS:      ('GET PKT STATUS',       3),
+    CMD_SET_STANDBY:            ('SET STDBY',            1),
+    CMD_SET_RX:                 ('SET RX',               3),
+    CMD_SET_TX:                 ('SET TX',               3),
+    CMD_SET_FREQ:               ('SET FREQ',             3),
+    CMD_SET_PACKETTYPE:         ('SET PKT TYPE',         1),
+    CMD_SET_MODULATIONPARAMS:   ('SET MOD PRMS',         3),
+    CMD_SET_PACKETPARAMS:       ('SET PKT PRMS',         7),
+    CMD_SET_DIOIRQPARAMS:       ('SET DIO IRQ',          1),
+    CMD_SET_TXPARAMS:           ('SET TX PRMS',          2),
+    CMD_SET_BUFFERBASEADDRESS:  ('SET BUFFER BASE ADDR', 1),
+    CMD_CLEAR_IRQ_STATUS:       ('CLR IRQSTATUS',        2),
+    CMD_RADIO_SET_AUTOFS:       ('SET AUTOFS',           1),
+    CMD_GET_STATUS:             ('GET STATUS',           1),
+    CMD_SET_FS:                 ('SET FS',               0),
 
 }
 
@@ -190,7 +221,7 @@ class Decoder(srd.Decoder):
         self.cmd, self.dat, self.min, self.max = c
         self.cmdInt = b
 
-        if self.min > 1:
+        if self.min > 0:
             # Don't output anything now, the command is merged with
             # the data bytes following it.
             self.mb_s = pos[0]
@@ -199,9 +230,9 @@ class Decoder(srd.Decoder):
 
     def format_command(self):
         '''Returns the label for the current command.'''
-        if self.cmd == 'R_REGISTER':
-            reg = regs[self.dat][0] if self.dat in regs else 'unknown register'
-            return 'Cmd R_REGISTER "{}"'.format(reg)
+        if self.cmdInt == CMD_READ_REG:
+            reg = regs[self.dat] if self.dat in regs else 'unknown register'
+            return 'READ REG "{}"'.format(reg)
         else:
             # return 'Cmd {}'.format(self.cmd)
             return self.cmd
@@ -229,6 +260,7 @@ class Decoder(srd.Decoder):
 
         # TODO Add more commands
 
+    # This is old code from the original nrf decoder
     def decode_register(self, pos, ann, regid, data):
         '''Decodes a register.
 
@@ -304,10 +336,35 @@ class Decoder(srd.Decoder):
         text = '{} = "{}"'.format(label, data)
         self.putp(pos, ann, text)
 
+
     def finish_command(self, pos):
         '''Decodes the remaining data bytes at position 'pos'.'''
 
-        self.putp(pos, self.ann_cmd, self.cmd)
+        if self.cmdInt == CMD_READ_REG:
+            # register address is in the 2nd and 3rd bytes of the mosi stream, but the command byte isn't saved,
+            # so indexes are 0 and 1.
+            regAddr = self.mosi_bytes()[0] * 256 + self.mosi_bytes()[1]
+            reg = regs[regAddr] if regAddr in regs else 'unknown register'
+            text = 'READ REG "{}"'.format(reg)
+            self.putp(pos, self.ann_cmd, text)
+
+            result = self.miso_bytes()[3]
+            self.putp((self.end_of_status_pos,pos[1]), self.ann_reg, "{:02X}".format(result))
+
+        elif self.cmdInt == CMD_SET_PACKETTYPE:
+            pktType = self.mosi_bytes()[0]
+            pktTypeStr = '?' if pktType not in packet_types else packet_types[pktType]
+            self.putp(pos, self.ann_cmd, "{} {}".format(self.cmd, pktTypeStr))
+
+        elif self.cmdInt == CMD_WRITE_REG:
+            regAddr = self.mosi_bytes()[0] * 256 + self.mosi_bytes()[1]
+            reg = regs[regAddr] if regAddr in regs else 'unknown register'
+            regValue = self.mosi_bytes()[2]
+            text = 'WRITE REG "{} = {}"'.format(reg, regValue)
+            self.putp(pos, self.ann_cmd, text)
+
+        else:
+            self.putp(pos, self.ann_cmd, self.cmd)
 
         # Commands that return values need extra handling
         if self.cmdInt == CMD_GET_PACKET_STATUS:
